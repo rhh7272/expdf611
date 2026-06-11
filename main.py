@@ -64,6 +64,7 @@ if uploaded_file is not None:
         )
     except Exception as e:
         st.error(f"API Key가 유효하지 않거나 임베딩 모델 초기화 중 오류가 발생했습니다.\n상세 정보: {e}")
+        st.error('Key가 유효하지 않습니다. Key 값을 확인하세요.')
         st.stop()
 
     retriever = db.as_retriever(

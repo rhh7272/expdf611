@@ -64,6 +64,10 @@ class StreamHandler(  BaseCallbackHandler ):
         self.container.markdown(    self.text  )
 
 if uploaded_file is not None:
+    if not openai_key:
+        st.warning("⚠️ 파일 분석 및 답변 생성을 위해 OPENAI API KEY를 먼저 입력해주세요.")
+        st.stop()
+
     pages = pdf_to_document(   uploaded_file   )
     # st.success(   f"PDF 페이지 : {len(pages)}"  )
 
@@ -78,10 +82,14 @@ if uploaded_file is not None:
 
     embeddings = OpenAIEmbeddings(  api_key=openai_key   )
 
-    db = Chroma.from_documents(
-        documents=texts,
-        embedding=embeddings
-    )
+    try:
+        db = Chroma.from_documents(
+            documents=texts,
+            embedding=embeddings
+        )
+    except Exception as e:
+        st.error(f"API Key가 유효하지 않거나 임베딩 모델 초기화 중 오류가 발생했습니다.\n상세 정보: {e}")
+        st.stop()
 
     retriever = db.as_retriever(
         search_kwargs={
@@ -103,7 +111,7 @@ if uploaded_file is not None:
                 handler = StreamHandler(      chat_box       )
 
                 llm = ChatOpenAI(
-                    model="gpt-4.1-mini",
+                    model="gpt-4o-mini",
                     temperature=0,
                     api_key=openai_key,
                     streaming=True,
@@ -126,4 +134,12 @@ if uploaded_file is not None:
                     document_chain
                 )
 
-                qa_chain.invoke(    {    "input": question    }      )
+                try:
+                    # invoke를 실행하면 StreamHandler가 실시간으로 답변을 화면에 출력합니다.
+                    # 또한, invoke는 모든 답변이 생성된 후 전체 답변 내용을 반환합니다.
+                    response = qa_chain.invoke(    {    "input": question    }      )
+                    # 스트리밍이 끝나고 화면이 리프레시되면 StreamHandler의 내용이 사라지므로,
+                    # 최종 답변을 한 번 더 화면에 그려줍니다.
+                    st.markdown(response["answer"])
+                except Exception as e:
+                    st.error(f"답변 생성 중 오류가 발생했습니다. API Key 또는 모델 이름을 확인해주세요.\n상세 정보: {e}")

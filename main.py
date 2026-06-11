@@ -5,19 +5,20 @@ import streamlit as st
 from langchain_community.document_loaders import (  PyPDFLoader )
 from langchain_text_splitters import (    RecursiveCharacterTextSplitter )
 from langchain_chroma import (    Chroma  )
-from langchain_openai import (  OpenAIEmbeddings,    ChatOpenAI )
+from langchain_openai import   OpenAIEmbeddings,    ChatOpenAI 
 from langchain_classic.chains import (   create_retrieval_chain )
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 
 from langchain_core.prompts import (   ChatPromptTemplate )
-from langchain_core.callbacks import (   BaseCallbackHandler )
+from langchain_core.callbacks import   BaseCallbackHandler
 
 st.title("📄 PDF File Reader")
 st.write("----------------")
 
-openai_key = st.text_input("OPENAI_API_KEY", type="password")
 
-uploaded_file = st.file_uploader("PDF 파일을 올려주세요", type=["pdf"])
+openai_key = st.text_input(  "OPENAI_API_KEY",    type="password" )
+
+uploaded_file = st.file_uploader(   "PDF 파일을 올려주세요",   type=["pdf"] )
 st.write("----------------")
 
 def pdf_to_document(uploaded_file):
@@ -28,18 +29,17 @@ def pdf_to_document(uploaded_file):
     temp_dir = tempfile.TemporaryDirectory()
 
     # 임시 PDF 파일
-    temp_filepath = os.path.join(temp_dir.name, uploaded_file.name)
+    temp_filepath = os.path.join(     temp_dir.name,    uploaded_file.name    )
 
-    with open(temp_filepath, "wb") as f:
-        f.write(uploaded_file.getvalue())
+    with open(   temp_filepath,    "wb"  ) as f:
+        f.write(    uploaded_file.getvalue()    )
 
-    loader = PyPDFLoader(temp_filepath)
+    loader = PyPDFLoader(   temp_filepath   )
 
     pages = loader.load()
     return pages
 
-class StreamHandler(BaseCallbackHandler):
-
+class StreamHandler(  BaseCallbackHandler ):
     """
     GPT가 토큰을 생성할 때마다
     Streamlit 화면에 출력하는 Handler
@@ -53,68 +53,61 @@ class StreamHandler(BaseCallbackHandler):
 
     처럼 실시간 출력
     """
-    def __init__(self, container):
+    def __init__(  self,    container  ):
         self.container = container
         self.text = ""
 
-    def on_llm_new_token(self, token, **kwargs):
+    def on_llm_new_token(  self,  token,   **kwargs ):
         # 새 토큰 누적
         self.text += token
         # 화면 갱신
-        self.container.markdown(self.text)
+        self.container.markdown(    self.text  )
 
 if uploaded_file is not None:
-    if not openai_key:
-        st.warning("⚠️ 파일 분석 및 답변 생성을 위해 OPENAI API KEY를 먼저 입력해주세요.")
-        st.stop()
-
-    pages = pdf_to_document(uploaded_file)
-    st.success(f"PDF 페이지 : {len(pages)}")
+    pages = pdf_to_document(   uploaded_file   )
+    # st.success(   f"PDF 페이지 : {len(pages)}"  )
 
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size = 500,
-        chunk_overlap = 100
+        chunk_size=500,
+        chunk_overlap=100
     )
 
-    texts = text_splitter.split_documents(pages)
+    texts = text_splitter.split_documents(    pages   )
 
-    st.info(f"문서 조각 : {len(texts)}")
+    # st.info(  f"문서 조각 : {len(texts)}"  )
 
-    embeddings = OpenAIEmbeddings(api_key = openai_key)
+    embeddings = OpenAIEmbeddings(  api_key=openai_key   )
 
-    try:
-        db = Chroma.from_documents(
-            documents = texts,
-            embedding = embeddings
-        )
-    except Exception as e:
-        st.error("유효하지 않는 API Key 입니다.")
-        st.stop()
+    db = Chroma.from_documents(
+        documents=texts,
+        embedding=embeddings
+    )
 
     retriever = db.as_retriever(
-        search_kwarg = {"k":3}
+        search_kwargs={
+            "k":3
+        }
     )
 
-    st.header("PDF에게 질문하세요")
-    question = st.text_input("질문 입력")
+    st.header(   "PDF에게 질문하세요"   )
+    question = st.text_input(   "질문 입력"    )
 
-    if st.button("질문하기"):
+    if st.button(   "질문하기"   ):
         if question == "":
-            st.warning("질문을 입력하세요")
+            st.warning( "질문을 입력하세요"   )
         else:
-            with st.spinner("답변 생성중..."):
+            with st.spinner(  "답변 생성중..."  ,show_time=True  ): 
 
                 chat_box = st.empty()
 
-                handler = StreamHandler(chat_box)
+                handler = StreamHandler(      chat_box       )
 
                 llm = ChatOpenAI(
-                    # model="gpt-4o-mini",
-                    model = "pt-4.1-mini",
-                    temperature = 0,
+                    model="gpt-4.1-mini",
+                    temperature=0,
                     api_key=openai_key,
-                    streaming = True,
-                    callbacks=[handler]
+                    streaming=True,
+                    callbacks=[ handler  ]
                 )
 
                 prompt = ChatPromptTemplate.from_template(
@@ -126,14 +119,11 @@ if uploaded_file is not None:
                     """
                 )
 
-                document_chain = (create_stuff_documents_chain(llm, prompt))
+                document_chain = ( create_stuff_documents_chain(   llm,    prompt    )   )
 
                 qa_chain = create_retrieval_chain(
                     retriever,
                     document_chain
                 )
 
-                # try:
-                #     qa_chain.invoke({"input": question})
-                # except Exception as e:
-                #     st.error("유효하지 않는 API Key 입니다.")
+                qa_chain.invoke(    {    "input": question    }      )

@@ -80,7 +80,7 @@ if uploaded_file is not None:
             # 스트리밍 결과를 출력할 빈 컨테이너를 spinner 바깥에서 미리 생성합니다.
             chat_box = st.empty()
 
-            with st.spinner("답변 생성중..."): 
+            with st.spinner("답변 생성중...", show_time=True): 
                 llm = ChatOpenAI(
                     model="gpt-4o-mini",
                     temperature=0,

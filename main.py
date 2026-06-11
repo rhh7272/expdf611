@@ -137,7 +137,7 @@ if uploaded_file is not None:
                 try:
                     # invoke를 실행하면 StreamHandler가 실시간으로 답변을 화면에 출력합니다.
                     # 또한, invoke는 모든 답변이 생성된 후 전체 답변 내용을 반환합니다.
-                    response = qa_chain.invoke(    {    "input": question    }      )
+                    response = qa_chain.stream(    {    "input": question    }      )
                     # 스트리밍이 끝나고 화면이 리프레시되면 StreamHandler의 내용이 사라지므로,
                     # 최종 답변을 한 번 더 화면에 그려줍니다.
                     st.markdown(response["answer"])

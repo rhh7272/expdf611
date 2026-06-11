@@ -133,7 +133,7 @@ if uploaded_file is not None:
                     document_chain
                 )
 
-                try:
-                    qa_chain.invoke({"input": question})
-                except Exception as e:
-                    st.error("유효하지 않는 API Key 입니다.")
+                # try:
+                #     qa_chain.invoke({"input": question})
+                # except Exception as e:
+                #     st.error("유효하지 않는 API Key 입니다.")

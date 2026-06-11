@@ -2,23 +2,22 @@ import os
 import tempfile
 
 import streamlit as st
-from langchain_community.document_loaders import (  PyPDFLoader )
-from langchain_text_splitters import (    RecursiveCharacterTextSplitter )
-from langchain_chroma import (    Chroma  )
-from langchain_openai import   OpenAIEmbeddings,    ChatOpenAI 
-from langchain_classic.chains import (   create_retrieval_chain )
+from langchain_community.document_loaders import (PyPDFLoader)
+from langchain_text_splitters import (RecursiveCharacterTextSplitter)
+from langchain_chroma import (Chroma)
+from langchain_openai import (OpenAIEmbeddings, ChatOpenAI)
+from langchain_classic.chains import (create_retrieval_chain)
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 
-from langchain_core.prompts import (   ChatPromptTemplate )
-from langchain_core.callbacks import   BaseCallbackHandler
+from langchain_core.prompts import (ChatPromptTemplate)
 
 st.title("📄 PDF File Reader")
 st.write("----------------")
 
 
-openai_key = st.text_input(  "OPENAI_API_KEY",    type="password" )
+openai_key = st.text_input("OPENAI_API_KEY", type="password")
 
-uploaded_file = st.file_uploader(   "PDF 파일을 올려주세요",   type=["pdf"] )
+uploaded_file = st.file_uploader("PDF 파일을 올려주세요", type=["pdf"])
 st.write("----------------")
 
 def pdf_to_document(uploaded_file):
@@ -29,46 +28,22 @@ def pdf_to_document(uploaded_file):
     temp_dir = tempfile.TemporaryDirectory()
 
     # 임시 PDF 파일
-    temp_filepath = os.path.join(     temp_dir.name,    uploaded_file.name    )
+    temp_filepath = os.path.join(temp_dir.name, uploaded_file.name)
 
-    with open(   temp_filepath,    "wb"  ) as f:
-        f.write(    uploaded_file.getvalue()    )
+    with open(temp_filepath, "wb") as f:
+        f.write(uploaded_file.getvalue())
 
-    loader = PyPDFLoader(   temp_filepath   )
+    loader = PyPDFLoader(temp_filepath)
 
     pages = loader.load()
     return pages
-
-class StreamHandler(  BaseCallbackHandler ):
-    """
-    GPT가 토큰을 생성할 때마다
-    Streamlit 화면에 출력하는 Handler
-
-    예:
-    GPT:   안녕하세요
-    생성 과정:
-    안
-    안녕
-    안녕하세요
-
-    처럼 실시간 출력
-    """
-    def __init__(  self,    container  ):
-        self.container = container
-        self.text = ""
-
-    def on_llm_new_token(  self,  token,   **kwargs ):
-        # 새 토큰 누적
-        self.text += token
-        # 화면 갱신
-        self.container.markdown(    self.text  )
 
 if uploaded_file is not None:
     if not openai_key:
         st.warning("⚠️ 파일 분석 및 답변 생성을 위해 OPENAI API KEY를 먼저 입력해주세요.")
         st.stop()
 
-    pages = pdf_to_document(   uploaded_file   )
+    pages = pdf_to_document(uploaded_file)
     # st.success(   f"PDF 페이지 : {len(pages)}"  )
 
     text_splitter = RecursiveCharacterTextSplitter(
@@ -76,11 +51,11 @@ if uploaded_file is not None:
         chunk_overlap=100
     )
 
-    texts = text_splitter.split_documents(    pages   )
+    texts = text_splitter.split_documents(pages)
 
     # st.info(  f"문서 조각 : {len(texts)}"  )
 
-    embeddings = OpenAIEmbeddings(  api_key=openai_key   )
+    embeddings = OpenAIEmbeddings(api_key=openai_key)
 
     try:
         db = Chroma.from_documents(
@@ -92,30 +67,25 @@ if uploaded_file is not None:
         st.stop()
 
     retriever = db.as_retriever(
-        search_kwargs={
-            "k":3
-        }
+        search_kwargs={"k":3}
     )
 
-    st.header(   "PDF에게 질문하세요"   )
-    question = st.text_input(   "질문 입력"    )
+    st.header("PDF에게 질문하세요")
+    question = st.text_input("질문 입력")
 
-    if st.button(   "질문하기"   ):
+    if st.button("질문하기"):
         if question == "":
-            st.warning( "질문을 입력하세요"   )
+            st.warning("질문을 입력하세요")
         else:
-            with st.spinner(  "답변 생성중..."  ,show_time=True  ): 
+            # 스트리밍 결과를 출력할 빈 컨테이너를 spinner 바깥에서 미리 생성합니다.
+            chat_box = st.empty()
 
-                chat_box = st.empty()
-
-                handler = StreamHandler(      chat_box       )
-
+            with st.spinner("답변 생성중..."): 
                 llm = ChatOpenAI(
                     model="gpt-4o-mini",
                     temperature=0,
                     api_key=openai_key,
-                    streaming=True,
-                    callbacks=[ handler  ]
+                    streaming=True
                 )
 
                 prompt = ChatPromptTemplate.from_template(
@@ -127,7 +97,7 @@ if uploaded_file is not None:
                     """
                 )
 
-                document_chain = ( create_stuff_documents_chain(   llm,    prompt    )   )
+                document_chain = (create_stuff_documents_chain(llm, prompt))
 
                 qa_chain = create_retrieval_chain(
                     retriever,
@@ -135,11 +105,11 @@ if uploaded_file is not None:
                 )
 
                 try:
-                    # invoke를 실행하면 StreamHandler가 실시간으로 답변을 화면에 출력합니다.
-                    # 또한, invoke는 모든 답변이 생성된 후 전체 답변 내용을 반환합니다.
-                    response = qa_chain.stream(    {    "input": question    }      )
-                    # 스트리밍이 끝나고 화면이 리프레시되면 StreamHandler의 내용이 사라지므로,
-                    # 최종 답변을 한 번 더 화면에 그려줍니다.
-                    st.markdown(response["answer"])
+                    # LCEL의 stream() 메서드를 활용하여 실시간으로 출력합니다.
+                    answer = ""
+                    for chunk in qa_chain.stream({"input": question}):
+                        if "answer" in chunk:
+                            answer += chunk["answer"]
+                            chat_box.markdown(answer)
                 except Exception as e:
                     st.error(f"답변 생성 중 오류가 발생했습니다. API Key 또는 모델 이름을 확인해주세요.\n상세 정보: {e}")

@@ -1,0 +1,15 @@
+langchain
+langchain-community
+langchain-text-splitters
+langchain-openai
+langchain-chroma
+python-dotenv
+youtube-transcript-api
+pytube
+pypdf
+docx2txt
+unstructured
+openpyxl
+python-pptx
+beautifulsoup4
+tiktoken
